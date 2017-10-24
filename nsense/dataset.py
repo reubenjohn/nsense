@@ -58,38 +58,62 @@ def lines(file):
 Object = lambda **kwargs: type("Object", (), kwargs)
 
 
-def extract_corpus_from_zip(path):
+def extract_brown_from_zip(path):
 	with ZipFile(path) as mzip:
-		files = mzip.namelist()[1:]
-		for file_path in files:
-			with mzip.open(file_path) as zip_f:
-				yield Object(path=file_path,
-							 sentences=[[word.split('/') for word in line.decode('utf-8').split(' ')] for line in
-										lines(zip_f)]
-							 )
+		with mzip.open('brown/cats.txt') as cats_f:
+			category_files = [mapping.decode('utf-8').split(' ')[0] for mapping in cats_f]
+			for file_path in category_files:
+				with mzip.open('brown/' + file_path) as zip_f:
+					yield Object(path=file_path,
+								 sentences=[[word.rsplit('/', 1) for word in line.decode('utf-8').split(' ')] for line
+											in
+											lines(zip_f)]
+								 )
+
+
+def detect_anomaly(sentence: iter):
+	valid_count = 0
+	pre_garbage_count = 0
+	post_garbage_count = 0
+	for word in sentence:
+		if len(word) == 2:
+			if post_garbage_count == 0:
+				valid_count = valid_count + 1
+			else:
+				return True
+		else:
+			if valid_count == 0:
+				pre_garbage_count = pre_garbage_count + 1
+			else:
+				post_garbage_count = post_garbage_count + 1
+	if valid_count == 0:
+		return True
+	return pre_garbage_count, pre_garbage_count + valid_count
 
 
 def preprocess_corpus(corpus):
 	for file in corpus:
 		for sentence in file.sentences:
-			start = 0
-			for word in sentence:
-				if len(word) != 2:
-					start = start + 1
-			if start == len(sentence):
+			anomaly = detect_anomaly(sentence)
+			if anomaly is True:
+				print('Found anomalous sentence: ', sentence)
 				continue
-			sentence = sentence[start:]
-			processed = [["\t", "\t"],
-						 [sentence[0][0][1:], sentence[0][1]] if sentence[0][0][0] == "\t" else sentence[0],
-						 *sentence[1:-1],
-						 ([sentence[-1][0], sentence[-1][1][:-1]]
-						  if sentence[-1][1][-1] == "\n"
-						  else sentence[-1]) if len(sentence[-1]) >= 2 else None
-						 ]
-			if processed[-1] is None:
-				processed[-1] = ["\n", "\n"]
-			else:
-				processed.append(["\n", "\n"])
+
+			pre_garbage_index, post_garbage_index = anomaly
+			processed = sentence[pre_garbage_index:post_garbage_index]
+
+			start_word = processed[0]
+			end_word = processed[-1]
+			if start_word[0].startswith("\t"):
+				start_word[0] = start_word[0][1:]
+			if end_word[0].endswith("\n"):
+				end_word[0] = end_word[0][:-1]
+
+			processed = [
+				["\t", "\t"],
+				*sentence[pre_garbage_index:post_garbage_index],
+				["\n", "\n"]
+			]
 			yield processed
 
 
