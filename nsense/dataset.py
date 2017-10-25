@@ -102,17 +102,14 @@ def preprocess_corpus(corpus):
 			pre_garbage_index, post_garbage_index = anomaly
 			processed = sentence[pre_garbage_index:post_garbage_index]
 
-			start_word = processed[0]
-			end_word = processed[-1]
-			if start_word[0].startswith("\t"):
-				start_word[0] = start_word[0][1:]
-			if end_word[0].endswith("\n"):
-				end_word[0] = end_word[0][:-1]
+			for word in sentence[pre_garbage_index:post_garbage_index]:
+				word[0] = word[0].strip().replace("\n", "\\n").replace("\t", "\\t").lower()
+				word[1] = word[1].strip().replace("\n", "\\n").replace("\t", "\\t").lower()
 
 			processed = [
-				["\t", "\t"],
+				["\\t", "\\t"],
 				*sentence[pre_garbage_index:post_garbage_index],
-				["\n", "\n"]
+				["\\n", "\\n"]
 			]
 			yield processed
 
