@@ -1,4 +1,5 @@
 import os
+import re
 from shutil import copyfile
 from zipfile import ZipFile
 
@@ -64,10 +65,12 @@ def extract_brown_from_zip(path):
 			category_files = [mapping.decode('utf-8').split(' ')[0] for mapping in cats_f]
 			for file_path in category_files:
 				with mzip.open('brown/' + file_path) as zip_f:
-					yield Object(path=file_path,
-								 sentences=[[word.rsplit('/', 1) for word in line.decode('utf-8').split(' ')] for line
+					sentences = [[word.rsplit('/', 1) for word in line.decode('utf-8').split(' ')] for line
 											in
-											lines(zip_f)]
+											lines(zip_f) if not re.match("[\[\].,]]", line.decode('utf-8'))]
+
+					yield Object(path=file_path,
+								 sentences=sentences
 								 )
 
 
